@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fliphtml5 Downloader</title>
+  <meta name="description" content="Paste a FlipHTML5 link to convert it into a PDF." />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --accent: #60a5fa;
+      --bg: #f8fafc;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mesh {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background:
+        radial-gradient(60% 50% at 15% 10%, rgba(37, 99, 235, 0.08), transparent 60%),
+        radial-gradient(50% 50% at 90% 20%, rgba(96, 165, 250, 0.10), transparent 60%),
+        radial-gradient(55% 45% at 50% 95%, rgba(37, 99, 235, 0.06), transparent 60%);
+    }
+    .wrap {
+      position: relative;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 64px 20px 80px;
+    }
+    h1 {
+      text-align: center;
+      font-size: clamp(28px, 5vw, 44px);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin: 0 0 12px;
+    }
+    h1 .grad {
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      margin: 0 0 40px;
+      font-size: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+      padding: 20px;
+    }
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+    .input-row input {
+      flex: 1;
+      min-width: 0;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 15px;
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .input-row input:focus {
+      border-color: rgba(37, 99, 235, 0.5);
+      background: #fff;
+    }
+    .btn {
+      border: none;
+      border-radius: 14px;
+      padding: 16px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: transform 0.1s, box-shadow 0.15s, opacity 0.15s;
+    }
+    .btn:hover { box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35); }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+    .btn.ghost {
+      background: #fff;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .hint {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .hint a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .hint a:hover { text-decoration: underline; }
+    .footer {
+      text-align: center;
+      margin-top: 48px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .list-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 40px 0 16px;
+    }
+    .task {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .task .info { flex: 1; min-width: 0; }
+    .task .title {
+      font-weight: 600;
+      font-size: 15px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .task .meta { font-size: 12px; margin-top: 4px; }
+    .task .meta.ok { color: #16a34a; }
+    .task .meta.err { color: #dc2626; }
+    .task .meta.proc { color: var(--primary); }
+    .bar {
+      height: 6px;
+      background: var(--bg);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .bar > div {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+    .task .remove {
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px;
+    }
+    .task .remove:hover { color: var(--text); }
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(37, 99, 235, 0.25);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      vertical-align: -2px;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 480px) {
+      .input-row { flex-direction: column; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mesh"></div>
+  <div class="wrap">
+    <h1>fliphtml5 <span class="grad">Downloader</span></h1>
+    <p class="subtitle">Paste a FlipHTML5 link to convert it into a PDF.</p>
+    <p class="hint">
+      <a href="https://fliphtml5.com/exploring/" target="_blank" rel="noopener noreferrer">Open FlipHTML5 in explore mode ↗</a>
+    </p>
+
+    <div class="card">
+      <div class="input-row">
+        <input id="url" type="text" placeholder="Paste FlipHTML5 book URL here..." />
+        <button id="download" class="btn" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          Download
+        </button>
+      </div>
+    </div>
+
+    <div id="list"></div>
+    <footer class="footer">By Wayne Scicluna &middot; 2026</footer>
+  </div>
+
+  <script>
+    (function () {
+      const { jsPDF } = window.jspdf;
+      const STORAGE_KEY = "fhd_converted";
+      const MAX_SAVED = 25;
+
+      const input = document.getElementById("url");
+      const downloadBtn = document.getElementById("download");
+      const listEl = document.getElementById("list");
+
+      // ---- helpers -----------------------------------------------------
+      function extractIdsFromUrl(urlStr) {
+        try {
+          const urlObj = new URL(urlStr.trim());
+          const parts = urlObj.pathname.split("/").filter((p) => p !== "");
+          if (parts.length >= 2) return { id1: parts[0], id2: parts[1] };
+          return null;
+        } catch {
+          return null;
+        }
+      }
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const basicSrc = src.split("?")[0];
+          if (document.querySelector('script[src^="' + basicSrc + '"]')) return resolve();
+          const s = document.createElement("script");
+          s.src = src;
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error("Failed to load " + src));
+          document.body.appendChild(s);
+        });
+      }
+
+      async function decryptPages(encrypted) {
+        await loadScript("https://static.fliphtml5.com/resourceFiles/html5_templates/js/jquery-4.0.0.min.js");
+        await loadScript("https://static.fliphtml5.com/resourceFiles/html5_templates/js/deString.js");
+        return new Promise((resolve, reject) => {
+          const start = Date.now();
+          const poll = setInterval(() => {
+            if (window.allocateUTF8 && window.Module && window.Module._DeString && window.UTF8ToString) {
+              clearInterval(poll);
+              try {
+                const q = window.allocateUTF8(encrypted);
+                const p = window.Module._DeString(q);
+                let y = window.UTF8ToString(p);
+                const u = y.lastIndexOf("]");
+                if (u > 0) y = y.substring(0, u + 1);
+                resolve(JSON.parse(y));
+              } catch {
+                reject(new Error("Decryption execution failed."));
+              }
+            } else if (Date.now() - start > 15000) {
+              clearInterval(poll);
+              reject(new Error("Decryption engine timed out. Check your network and retry."));
+            }
+          }, 100);
+        });
+      }
+
+      async function loadBookConfig(id1, id2) {
+        const configUrl = "https://online.fliphtml5.com/" + id1 + "/" + id2 + "/javascript/config.js";
+        const res = await fetch(configUrl);
+        const text = await res.text();
+        const m = text.match(/htmlConfig\s*=\s*({[\s\S]*?});/);
+        if (!m) throw new Error("Could not parse book configuration");
+        const config = JSON.parse(m[1]);
+        let pageData;
+        if (typeof config.fliphtml5_pages === "string") {
+          pageData = await decryptPages(config.fliphtml5_pages);
+        } else {
+          pageData = config.fliphtml5_pages;
+        }
+        const baseUrl = "https://online.fliphtml5.com/" + id1 + "/" + id2 + "/";
+        const imageUrls = pageData.map((p) => {
+          const relativePath = p.n[0].replace(/\\/g, "/").replace("files/large/", "").replace(/^\.\//, "");
+          if (relativePath.indexOf("files/content-page") > -1) return baseUrl + relativePath;
+          if (relativePath.endsWith(".zip")) return baseUrl + "files/content-page/" + relativePath;
+          // Paths that already live under files/ (e.g. files/page/1.jpg) must not
+          // be re-prefixed with files/large/.
+          if (relativePath.indexOf("files/") === 0) return baseUrl + relativePath;
+          return baseUrl + "files/large/" + relativePath;
+        });
+        return {
+          config,
+          pages: pageData,
+          imageUrls,
+          bookTitle: (config.meta && config.meta.title) || id2,
+          isEncryptionBook: config.loadingConfig && config.loadingConfig.isEncryptionBook === true,
+        };
+      }
+
+      function getBlob(url) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("GET", url, true);
+          xhr.responseType = "blob";
+          xhr.onload = function () {
+            if (this.readyState === 4 && this.status === 200) {
+              const response = this.response;
+              const fr1 = new FileReader();
+              fr1.onload = function () {
+                const pdfData = response.slice(1083, response.size - 1003, "application/pdf");
+                let password = "";
+                const part1 = response.slice(1080, 1083);
+                const part2 = response.slice(response.size - 1003, response.size - 1000);
+                const fr2 = new FileReader();
+                fr2.onload = function () {
+                  password = this.result + password;
+                  const fr3 = new FileReader();
+                  fr3.onload = function () {
+                    password += this.result;
+                    const encryptedPart = pdfData.slice(0, 4000);
+                    const fr4 = new FileReader();
+                    fr4.onload = function () {
+                      const decrypted = new Uint8Array(this.result);
+                      for (let i = 0; i < decrypted.byteLength; i++) decrypted[i] = 255 - decrypted[i];
+                      const decryptedPdf = new Blob(
+                        [new Blob([decrypted.buffer]), pdfData.slice(4000, pdfData.size)],
+                        { type: "application/pdf" }
+                      );
+                      const pdfUrl = window.URL.createObjectURL(decryptedPdf);
+                      resolve({ url: pdfUrl, password });
+                    };
+                    fr4.readAsArrayBuffer(encryptedPart);
+                  };
+                  fr3.readAsText(part2);
+                };
+                fr2.readAsText(part1);
+              };
+              fr1.readAsArrayBuffer(response);
+            } else {
+              reject(new Error("Failed to load ZIP file: " + this.status));
+            }
+          };
+          xhr.onerror = function () { reject(new Error("Network error while loading ZIP file")); };
+          xhr.send();
+        });
+      }
+
+      function getPdfjs() {
+        const lib = window.pdfjsLib;
+        lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        return lib;
+      }
+
+      async function extractPdfPages(pdfUrl, password, onProgress) {
+        const lib = getPdfjs();
+        const loadingTask = lib.getDocument({ url: pdfUrl, password: password });
+        const pdf = await loadingTask.promise;
+        const totalPages = pdf.numPages;
+        const results = [];
+        for (let i = 1; i <= totalPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d");
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+          results.push({ data: canvas.toDataURL("image/jpeg", 0.95), w: viewport.width, h: viewport.height });
+          if (onProgress) onProgress(i, totalPages);
+        }
+        return results;
+      }
+
+      function isZipUrl(url) {
+        return url.toLowerCase().endsWith(".zip");
+      }
+
+      function fetchImageWithMeta(imgUrl) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = function () {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Canvas context failed"));
+            ctx.drawImage(img, 0, 0);
+            try {
+              resolve({ data: canvas.toDataURL("image/jpeg", 0.95), w: img.width, h: img.height });
+            } catch {
+              reject(new Error("CORS fail"));
+            }
+          };
+          img.onerror = function () { reject(new Error("Failed to load: " + imgUrl)); };
+          img.src = imgUrl;
+        });
+      }
+
+      function toast(msg, desc) {
+        alert((desc ? desc + "\n\n" : "") + msg);
+      }
+
+      // ---- state -------------------------------------------------------
+      let tasks = loadConverted();
+      let autoDownloadId = null;
+
+      function loadConverted() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const list = JSON.parse(raw);
+          return list.slice(0, MAX_SAVED).map((t) => ({
+            id: t.id, url: t.url, title: t.title,
+            status: "done", progress: 100, currentPage: 0, totalPages: 0,
+          }));
+        } catch {
+          return [];
+        }
+      }
+
+      function persist() {
+        try {
+          const done = tasks.filter((t) => t.status === "done").slice(0, MAX_SAVED)
+            .map((t) => ({ id: t.id, url: t.url, title: t.title }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(done));
+        } catch {}
+      }
+
+      function updateTask(id, updates) {
+        tasks = tasks.map((t) => (t.id === id ? Object.assign({}, t, updates) : t));
+        persist();
+        render();
+      }
+
+      function saveBlob(name, blob) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => document.body.removeChild(link), 100);
+      }
+
+      // ---- download flow ----------------------------------------------
+      async function startDownload(url, existingTaskId) {
+        const ids = extractIdsFromUrl(url);
+        if (!ids) {
+          toast("Invalid URL format", "Please enter a valid FlipHTML5 book URL.");
+          return;
+        }
+
+        const taskId = existingTaskId || String(Date.now());
+
+        if (!existingTaskId) {
+          tasks = [{ id: taskId, url: url, title: ids.id2, status: "loading", progress: 0, currentPage: 0, totalPages: 0 }, ...tasks];
+          input.value = "";
+        } else {
+          updateTask(taskId, { status: "loading", errorMessage: undefined });
+        }
+        render();
+
+        try {
+          const cfg = await loadBookConfig(ids.id1, ids.id2);
+
+          if (cfg.isEncryptionBook) {
+            updateTask(taskId, { status: "error", errorMessage: "This is a private book and is not available for download." });
+            return;
+          }
+
+          const metaWidth = cfg.config.meta && cfg.config.meta.pageWidth ? Number(cfg.config.meta.pageWidth) : null;
+          const metaHeight = cfg.config.meta && cfg.config.meta.pageHeight ? Number(cfg.config.meta.pageHeight) : null;
+
+          updateTask(taskId, { status: "processing", totalPages: cfg.pages.length, title: cfg.bookTitle });
+
+          const validResults = [];
+          let completed = 0;
+
+          for (let i = 0; i < cfg.imageUrls.length; i++) {
+            const pageUrl = cfg.imageUrls[i];
+            try {
+              if (isZipUrl(pageUrl)) {
+                const blobRes = await getBlob(pageUrl);
+                const pdfPages = await extractPdfPages(blobRes.url, blobRes.password, (cur, tot) => {
+                  const p = ((completed + cur / tot) / cfg.imageUrls.length) * 100;
+                  updateTask(taskId, { progress: p, currentPage: completed + cur });
+                });
+                validResults.push.apply(validResults, pdfPages);
+              } else {
+                const r = await fetchImageWithMeta(pageUrl);
+                validResults.push(r);
+              }
+              completed++;
+              updateTask(taskId, { progress: (completed / cfg.imageUrls.length) * 100, currentPage: completed });
+            } catch (err) {
+              console.error("Failed to process page " + (i + 1) + ":", err);
+            }
+          }
+
+          if (validResults.length === 0) throw new Error("No pages could be downloaded.");
+
+          const first = validResults[0];
+          const initialWidth = metaWidth || first.w;
+          const initialHeight = metaHeight || first.h;
+
+          const pdf = new jsPDF({
+            orientation: initialWidth > initialHeight ? "l" : "p",
+            unit: "px",
+            format: [initialWidth, initialHeight],
+          });
+
+          for (let i = 0; i < validResults.length; i++) {
+            const page = validResults[i];
+            const pWidth = metaWidth || page.w;
+            const pHeight = metaHeight || page.h;
+            if (i > 0) pdf.addPage([pWidth, pHeight], pWidth > pHeight ? "l" : "p");
+            pdf.addImage(page.data, "JPEG", 0, 0, pWidth, pHeight);
+          }
+
+          const pdfBlob = pdf.output("blob");
+          const pdfBlobUrl = URL.createObjectURL(pdfBlob);
+
+          updateTask(taskId, { status: "done", progress: 100, pdfData: pdf, pdfBlobUrl: pdfBlobUrl });
+
+          if (autoDownloadId === taskId) {
+            autoDownloadId = null;
+            const safe = (cfg.bookTitle || "book").replace(/[/\\?%*:|"<>]/g, "_");
+            pdf.save(safe + ".pdf");
+          }
+        } catch (err) {
+          updateTask(taskId, { status: "error", errorMessage: err.message });
+        }
+      }
+
+      function downloadPdf(task) {
+        if (task.pdfBlobUrl) {
+          const safe = (task.title || "book").replace(/[/\\?%*:|"<>]/g, "_");
+          saveBlob(safe + ".pdf", task.pdfData.output("blob"));
+        } else if (task.pdfData) {
+          const safe = (task.title || "book").replace(/[/\\?%*:|"<>]/g, "_");
+          task.pdfData.save(safe + ".pdf");
+        } else {
+          autoDownloadId = task.id;
+          startDownload(task.url, task.id);
+        }
+      }
+
+      function removeTask(id) {
+        tasks = tasks.filter((t) => t.id !== id);
+        persist();
+        render();
+      }
+
+      // ---- rendering ---------------------------------------------------
+      function render() {
+        listEl.innerHTML = "";
+        if (tasks.length === 0) return;
+
+        const title = document.createElement("h2");
+        title.className = "list-title";
+        title.textContent = "Converted PDFs";
+        listEl.appendChild(title);
+
+        tasks.forEach((task) => {
+          const row = document.createElement("div");
+          row.className = "task";
+
+          const info = document.createElement("div");
+          info.className = "info";
+
+          const t = document.createElement("div");
+          t.className = "title";
+          t.textContent = task.title;
+          info.appendChild(t);
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          if (task.status === "loading" || task.status === "processing") {
+            meta.className = "meta proc";
+            meta.innerHTML = '<span class="spinner"></span>Processing ' + task.currentPage + "/" + task.totalPages;
+            info.appendChild(meta);
+            const bar = document.createElement("div");
+            bar.className = "bar";
+            const fill = document.createElement("div");
+            fill.style.width = Math.round(task.progress) + "%";
+            bar.appendChild(fill);
+            info.appendChild(bar);
+          } else if (task.status === "done") {
+            meta.className = "meta ok";
+            meta.textContent = "Complete";
+            info.appendChild(meta);
+          } else {
+            meta.className = "meta err";
+            meta.textContent = task.errorMessage || "Error";
+            info.appendChild(meta);
+          }
+
+          row.appendChild(info);
+
+          const action = document.createElement("button");
+          if (task.status === "done") {
+            action.className = "btn";
+            action.textContent = "Download";
+            action.onclick = () => downloadPdf(task);
+          } else if (task.status === "error") {
+            action.className = "btn";
+            action.textContent = "Retry";
+            action.onclick = () => startDownload(task.url, task.id);
+          } else {
+            action.className = "btn";
+            action.textContent = "Download";
+            action.disabled = true;
+          }
+          row.appendChild(action);
+
+          if (task.status === "done" || task.status === "error") {
+            const remove = document.createElement("button");
+            remove.className = "remove";
+            remove.textContent = "\u00d7";
+            remove.setAttribute("aria-label", "Remove");
+            remove.onclick = () => removeTask(task.id);
+            row.appendChild(remove);
+          }
+
+          listEl.appendChild(row);
+        });
+      }
+
+      // ---- events ------------------------------------------------------
+      input.addEventListener("input", () => {
+        downloadBtn.disabled = !input.value.trim();
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && input.value.trim()) startDownload(input.value.trim());
+      });
+      downloadBtn.addEventListener("click", () => {
+        if (input.value.trim()) startDownload(input.value.trim());
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
